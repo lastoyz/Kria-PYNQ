@@ -86,7 +86,7 @@ ol = BaseOverlay("base.bit")
 
 ## 4) Selftest / 기능 테스트
 
-참조: `sw-setup-deep-dive.md`, `board-variants-notes.md`, `kv260-board-test-checklist.md` (KV260)
+참조: `sw-setup-deep-dive.md`, `board-variants-notes.md`, `kv260-board-test-checklist.md`, `kv260-mipi-camera-test-guide.md` (KV260 MIPI)
 
 ### Selftest 실행
 
@@ -98,7 +98,7 @@ sudo ./selftest.sh
 
 | 보드 | selftest 내용 | 필수 주변장치 |
 |------|---------------|---------------|
-| KV260 | composable runtime tests + DPU tests | HDMI/DP 모니터, USB 웹캠 (`test_apps`) |
+| KV260 | composable runtime tests + DPU tests | HDMI/DP 모니터; `test_apps`는 USB 웹캠 또는 `mountains.mp4` (MIPI-only 시 § `kv260-mipi-camera-test-guide.md`) |
 | KR260 | DPU tests only | (README 미기재) |
 | KD240 | **생성 안 됨** | — |
 

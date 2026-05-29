@@ -12,6 +12,7 @@
 - [Common Troubleshooting](./guides/common-troubleshooting.md)
 - [Board Variants Notes](./guides/board-variants-notes.md)
 - [KV260 Board Test Checklist](./guides/kv260-board-test-checklist.md)
+- [KV260 MIPI Camera Test Guide](./guides/kv260-mipi-camera-test-guide.md)
 
 ## structure
 
