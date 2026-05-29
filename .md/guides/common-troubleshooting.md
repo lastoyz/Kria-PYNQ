@@ -89,12 +89,31 @@ ls /sys/kernel/config/device-tree/overlays/pynq
 
 **증상**: `test_apps.py` pytest fail
 
-**원인**: README 명시 — HDMI/DP 모니터 + USB 웹캠 미연결
+**원인**: OpenCV USB 웹캠 또는 `mountains.mp4` 필요 (`VSource.OpenCV`)
+
+**대응 (AR1335 IAS 프로젝트)**:
+
+- `test_apps.py` **skip** — MIPI 검증은 Smartcam Phase (`kv260-mipi-camera-test-guide.md`)
+- composable/DPU pytest만 수행
+
+## AR1335 Smartcam MIPI 실패
+
+**증상**: `smartcam --mipi` 오류 또는 검은 화면
 
 **대응**:
 
-- 주변장치 연결 후 재실행
-- 또는 해당 테스트 제외하고 나머지 selftest만 실행
+- J7 IAS FFC 체결 확인 (RPi 포트 아님)
+- `ls /lib/firmware/ap1302_ar1335_single_fw.bin`
+- `sudo xmutil loadapp kv260-smartcam`
+- `dmesg | grep -i ap1302`
+
+## PYNQ base.mipi 실패 (AR1335 장착 시)
+
+**증상**: `base.mipi.readframe()` hang/오류
+
+**원인**: Kria-PYNQ base overlay `base.mipi`는 Pcam 5C / RPi MIPI 경로용. J7 AR1335와 **다른 PL 경로**.
+
+**대응**: Smartcam으로 AR1335 검증. `mipi_to_displayport.ipynb` fail은 AR1335-only 환경에서 예상 가능.
 
 ## KD240 selftest 없음
 

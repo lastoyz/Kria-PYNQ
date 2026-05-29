@@ -2,127 +2,161 @@
 
 ## 문서 목적
 
-KV260 보드 테스트 시 **USB 웹캠 대신 MIPI 카메라 모듈**로 영상 입력 경로를 구성하고 검증하는 방법을 정리한다.
+KV260에 **onsemi AR1335 IAS 모듈**(J7)이 장착된 환경에서 카메라 입력을 검증하는 방법을 정리한다.
+
+## 본 프로젝트 카메라
+
+| 항목 | 값 |
+|------|-----|
+| 모델 | **AR1335** (13MP Auto-Focus RGB) |
+| 제조/분류 | onsemi **IAS (Imager Access System)** |
+| 연결 | KV260 carrier **J7 IAS** 커넥터 |
+| ISP | onsemi **AP1302** (J7 전용) |
+| Avnet P/N 예 | CAVBA-000A |
 
 ## 범위
 
-- 포함: 하드웨어 연결, Kria-PYNQ base overlay MIPI 경로, 노트북/스모크 테스트, selftest 대체 전략
-- 제외: IAS(J7) Avnet 센서 모듈용 Vitis smart-camera bitstream, composable DFX 커스텀 파이프라인 개발
+- 포함: AR1335 하드웨어 경로, Smartcam/xmutil 검증, PYNQ install.sh와의 관계, selftest 대체
+- 제외: IAS J8 직결 FPGA 커스텀 PL, Vitis overlay 개발 상세
 
-## USB 웹캠 vs MIPI — 경로 차이
+---
 
-| 항목 | USB 웹캠 | MIPI (Pcam 5C) |
-|------|----------|----------------|
-| 입력 API | OpenCV `VideoCapture(0)` | PYNQ `base.mipi` (`pynq.lib.video`) |
-| PL 사용 | 주로 PS USB + DisplayPort | MIPI CSI-2 RX + ISP 파이프라인 (base overlay) |
-| 대표 노트북 | `opencv_filters_webcam.ipynb`, `opencv_face_detect_webcam.ipynb` | `mipi_to_displayport.ipynb` |
-| selftest `test_apps.py` | **직접 사용** (OpenCV 소스) | **미사용** (MIPI 소스 아님) |
-| KV260 커넥터 | USB (U44/U46 등) | **Raspberry Pi camera** FFC (15-pin) |
+## 중요: Pcam 5C / RPi 포트 vs AR1335 IAS (J7)
 
-Kria-PYNQ README 기준, base overlay의 MIPI는 **Raspberry Pi camera 인터페이스 + Digilent Pcam 5C** 조합을 전제로 한다.
+KV260에는 **서로 다른 MIPI 입력 경로**가 있다.
 
-## 지원 MIPI 모듈 (Kria-PYNQ base overlay)
+| 경로 | 커넥터 | 대표 모듈 | Kria-PYNQ base overlay |
+|------|--------|-----------|------------------------|
+| **IAS + AP1302** | **J7** | **AR1335**, AR0144 | `base.mipi` 노트북과 **PL 연결 불일치 가능** |
+| RPi camera | RPi FFC 포트 | Digilent Pcam 5C | `mipi_to_displayport.ipynb` 대상 |
 
-### 공식 권장
+Kria-PYNQ `kv260/base` Vivado 설계의 top-level MIPI 포트(`mipi_phy_if`)와 노트북 `base.mipi` API는 **README상 Pcam 5C / RPi camera** 경로를 전제로 한다.
 
-- [Digilent Pcam 5C](https://digilent.com/reference/add-ons/pcam-5c/start)
-  - OV5640, 2-lane MIPI CSI-2
-  - Raspberry Pi 호환 15-pin FFC
-  - Kria-PYNQ `kv260/base` Vivado 설계의 `mipi_phy_if`, `cam_gpio`, I2C 경로와 매칭
+`base.dtsi`에 AP1302/AR1335 노드가 있으나, 배포 bitstream(`kv260_base_2.7.zip`)과 Python `base.mipi`가 **J7 AR1335를 직접 구동한다고 가정하면 안 된다**.
 
-### KV260 carrier 연결
+### 결론 (AR1335 장착 시)
 
-- **Raspberry Pi camera 커넥터**에 Pcam 5C FFC 연결 (contacts facing up, carrier 측 가이드 참조)
-- **DisplayPort 또는 HDMI** 모니터 (MIPI→DP 출력 확인용)
-- 전원: carrier 정격 전원 (12V barrel jack 등, carrier 매뉴얼 준수)
+| 검증 목적 | 권장 경로 |
+|-----------|-----------|
+| **AR1335 MIPI 영상 입출력** | **kv260-smartcam** + `xmutil` + `smartcam --mipi` |
+| PYNQ overlay / composable / DPU | Kria-PYNQ `install.sh` (기존) |
+| USB 웹캠 OpenCV | `opencv_*_webcam.ipynb` (별도 USB cam 필요) |
 
-### IAS(J7) 모듈과의 구분 (중요)
+PYNQ base overlay와 smartcam firmware는 **동시 PL 점유 불가** → 테스트 시 `xmutil unloadapp` / overlay 재로딩으로 전환.
 
-KV260 carrier의 **IAS 센서 커넥터(J7)** 용 Avnet AR1335/AR0144 등은 AMD Vitis smart-camera 앱용으로 문서화되어 있다 ([KV260 Workshop](https://github.com/Xilinx/Xilinx_Kria_KV260_Workshop/blob/main/Linux%20set-up.md)).
+---
 
-Kria-PYNQ **base overlay**의 `base.mipi` API는 이 IAS 모듈이 아니라 **Raspberry Pi camera 포트 + Pcam 5C** 경로를 대상으로 한다. IAS 모듈만 보유한 경우 base overlay MIPI 노트북과 **호환되지 않을 수 있다**.
+## 하드웨어 준비
 
-## 선행 조건
+### AR1335 (J7)
 
-- `install.sh -b KV260` 완료
-- `kv260` base overlay 로딩 가능
-- Pcam 5C + FFC 케이블 + DP/HDMI 모니터
+- 전원 OFF 상태에서 **J7 IAS**에 AR1335 모듈 장착
+- FFC 케이블 방향·체결 확인 ([IAS 센서 통합 가이드](https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/docs/integrating_new_sensors.html))
+- KV260 V2: AR1335 auto-focus 지원 / V1: 거리에 따라 흐릴 수 있음
 
-참조: `board-setup-and-test-guide.md`, `kv260-board-test-checklist.md`
+### 모니터
 
-## 테스트 방법
+- DisplayPort 또는 HDMI (smartcam DP 출력 확인용)
 
-### 1) MIPI 스모크 테스트 (Python 셀)
+### AP1302 firmware blob
 
-Jupyter 또는 SSH에서:
+J7 AR1335는 ISP firmware가 필요하다.
 
-```python
-from kv260 import BaseOverlay
-from pynq.lib.video import VideoMode
-import PIL.Image
-
-base = BaseOverlay("base.bit")
-mipi = base.mipi
-
-videomode = VideoMode(1280, 720, 24)
-mipi.configure(videomode)
-mipi.start()
-
-frame = mipi.readframe()
-print("frame shape:", frame.shape)
-
-# 채널 순서 보정 (PIL 표시용)
-PIL.Image.fromarray(frame[:, :, [2, 1, 0]])
-
-mipi.stop()
-base.free()
+```bash
+ls /lib/firmware/ap1302_ar1335_single_fw.bin
 ```
 
-**pass 기준**: 예외 없이 frame shape 출력 (예: `(720, 1280, 3)`)
+없으면 smartcam firmware 패키지 설치 후 확인 (아래 § Smartcam 설치).
 
-### 2) 노트북 전체 테스트 (권장)
+---
 
-경로: `kv260/base/notebooks/video/mipi_to_displayport.ipynb`
+## Phase A — PYNQ 환경 (Kria-PYNQ)
 
-설치 후 Jupyter 경로 (예):
+기존 체크리스트대로 `install.sh -b KV260` 완료.
 
-```
-/root/jupyter_notebooks/kv260/video/mipi_to_displayport.ipynb
-```
+- Jupyter `:9090/lab`
+- composable / DPU selftest (`test_apps.py` 제외)
+- **카메라 검증은 Phase B에서 수행**
 
-실행 흐름:
+---
 
-1. `BaseOverlay("base.bit")` 로드
-2. `base.mipi` configure/start
-3. 단일 frame Jupyter 표시
-4. `DisplayPort` configure (1280×720@24)
-5. 200 frame MIPI→DP 루프 + FPS 출력
-6. cleanup (`displayport.close()`, `mipi.stop()`, `base.free()`)
+## Phase B — AR1335 MIPI 검증 (Smartcam)
 
-**pass 기준**:
+공식 절차: [Smart Camera Application Deployment](https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/docs/smartcamera/docs/app_deployment.html)
 
-- [ ] 노트북에서 still frame 표시
-- [ ] DP/HDMI 모니터에 실시간 영상 출력
-- [ ] FPS 로그 출력 (0 FPS 아님)
+### 1) Smartcam firmware 설치
 
-### 3) selftest — MIPI 전용 환경에서의 대체
-
-`test_apps.py`는 composable 파이프라인에서 **`VSource.OpenCV`** (USB 웹캠 또는 `mountains.mp4`)만 사용한다.
-
-```python
-# pynq_composable/runtime_tests/test_apps.py (요지)
-VSource.OpenCV  # USB cam (index 0) 또는 ../mountains.mp4
+```bash
+sudo add-apt-repository ppa:xilinx-apps
+sudo apt update
+sudo apt install xlnx-firmware-kv260-smartcam
+sudo xmutil listapps
 ```
 
-따라서 **MIPI만 연결된 환경**에서는:
+`kv260-smartcam`이 목록에 표시되는지 확인.
 
-| 옵션 | 방법 | 비고 |
-|------|------|------|
-| A (권장) | `test_apps.py` **제외**, MIPI 노트북으로 대체 | 실물 MIPI 검증에 부합 |
-| B | `mountains.mp4`를 runtime_tests 경로에 배치 후 `test_apps` 실행 | USB/MIPI 미검증, composable만 확인 |
-| C | USB 웹캠 추가 연결 | README 기본 selftest 조건 |
+### 2) Smartcam overlay 로드
 
-MIPI 프로젝트 권장 selftest:
+```bash
+sudo xmutil unloadapp          # 기존 accelerator 있으면
+sudo xmutil loadapp kv260-smartcam
+```
+
+> `xmutil desktop_disable` 후 UART로 진행하는 것이 안정적일 수 있다 (DP blank 가능).
+
+### 3) MIPI 스모크 — DP 출력 (AI 없음)
+
+모니터 연결 후:
+
+```bash
+smartcam --mipi -W 1920 -H 1080 --target dp --nodet
+```
+
+또는:
+
+```bash
+bash /opt/xilinx/kv260-smartcam/bin/02.mipi-dp.sh
+```
+
+**pass 기준**: DP/HDMI 모니터에 AR1335 영상 표시.
+
+### 4) MIPI RTSP (선택)
+
+보드에서:
+
+```bash
+smartcam --mipi -W 1920 -H 1080 --target rtsp --nodet
+```
+
+호스트 PC:
+
+```bash
+ffplay rtsp://<board_ip>:5000/test
+```
+
+### 5) PYNQ overlay로 복귀 (필요 시)
+
+```bash
+sudo xmutil unloadapp
+```
+
+Jupyter에서 `BaseOverlay("base.bit")` 재로딩.
+
+---
+
+## Phase C — Kria-PYNQ `mipi_to_displayport.ipynb` (참고)
+
+Pcam 5C / RPi 포트용 노트북. **AR1335@J7 전용 검증으로 사용하지 않는다.**
+
+AR1335만 있는 경우 이 노트북 실패는 **예상 가능** — Smartcam Phase B 결과를 카메라 pass 기준으로 삼는다.
+
+---
+
+## Selftest (MIPI / AR1335 환경)
+
+`test_apps.py`는 `VSource.OpenCV` (USB 또는 `mountains.mp4`) 전용.
+
+**AR1335 MIPI 검증과 무관** → 제외.
 
 ```bash
 cd /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_composable/runtime_tests
@@ -130,63 +164,57 @@ sudo python3 -m pytest test_composable.py test_mmio_partial_bitstreams.py
 sudo python3 -m pytest /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_dpu/tests
 ```
 
-MIPI 검증은 별도로 `mipi_to_displayport.ipynb` 또는 §1 스모크 테스트 수행.
+| 항목 | AR1335 프로젝트 기준 |
+|------|---------------------|
+| MIPI 영상 | `smartcam --mipi` (Phase B) |
+| composable PL | pytest (Phase A) |
+| DPU | pytest (Phase A) |
+| test_apps | skip |
 
-## MIPI 전용 테스트 체크리스트
-
-### 하드웨어
-
-- [ ] Pcam 5C FFC가 **Raspberry Pi camera** 포트에 올바른 방향으로 체결
-- [ ] DP/HDMI 모니터 연결
-- [ ] (USB 웹캠 **미연결** — MIPI-only 테스트 시)
-
-### 소프트웨어
-
-- [ ] `source /etc/profile.d/pynq_venv.sh`
-- [ ] `BaseOverlay("base.bit")` 로딩
-- [ ] §1 MIPI 스모크 pass
-- [ ] `mipi_to_displayport.ipynb` pass
-
-### selftest (MIPI-only 변형)
-
-- [ ] `test_composable.py` pass
-- [ ] `test_mmio_partial_bitstreams.py` pass
-- [ ] `pynq_dpu/tests` pass
-- [ ] `test_apps.py` → **skip 또는 mountains.mp4 대체** (MIPI 대체 아님, 명시 기록)
+---
 
 ## 트러블슈팅
 
-### `base.mipi` 초기화 실패 / readframe hang
+### Smartcam MIPI 인식 실패
 
-- FFC 방향·체결 상태 재확인 ([Pcam 5C Reference](https://digilent.com/reference/add-ons/pcam-5c/reference-manual))
-- Raspberry Pi camera 포트 사용 확인 (IAS J7 모듈과 혼동 여부)
-- overlay 재로딩: `base.free()` 후 `BaseOverlay("base.bit")` 재시도
-- I2C/cam_gpio: base overlay가 cam enable 및 I2C switch를 제어 (`base.xdc`, `base.tcl` 참조)
+- J7 체결·FFC 방향 재확인
+- `ap1302_ar1335_single_fw.bin` 존재 확인
+- `sudo xmutil loadapp kv260-smartcam` 재실행
+- `dmesg | grep -i ap1302` 로 ISP 드라이버/firmware 로드 확인
 
-### 노트북 frame은 보이나 DP 출력 없음
+### PYNQ `base.mipi` readframe 실패 (AR1335 장착 시)
 
-- 모니터 DP/HDMI 입력 소스 확인
-- `displayport.configure(videomode, PIXEL_RGB)` 해상도가 MIPI mode(1280×720)와 일치하는지 확인
+- **정상적일 수 있음** — base overlay가 RPi MIPI 경로용이기 때문
+- AR1335 검증은 Smartcam 경로 사용
 
-### OpenCV 웹캠 노트북을 MIPI에 그대로 적용 불가
+### xmutil / PYNQ overlay 충돌
 
-`opencv_filters_webcam.ipynb` 등은 `cv2.VideoCapture(0)` 고정. MIPI frame을 OpenCV 파이프에 넣으려면 **별도 브릿지 코드**가 필요하며, Kria-PYNQ 기본 패키지에는 포함되지 않는다.
+- smartcam 테스트 전 `BaseOverlay.free()` 또는 재부팅
+- smartcam 종료 후 `xmutil unloadapp` → PYNQ overlay 재로딩
+
+### Auto-focus (KV260 V1)
+
+- V1 carrier는 AR1335 AF 미지원 — 특정 거리에서 흐릴 수 있음
+
+---
+
+## Go/No-Go (AR1335)
+
+- [ ] J7 AR1335 물리 장착 확인
+- [ ] `xlnx-firmware-kv260-smartcam` 설치
+- [ ] `xmutil loadapp kv260-smartcam` 성공
+- [ ] `smartcam --mipi --target dp --nodet` 영상 출력
+- [ ] PYNQ composable + DPU selftest pass
+- [ ] PL 전환(xmutil ↔ PYNQ overlay) 절차 기록
 
 ## 관련 문서
 
-- `kv260-board-test-checklist.md` (MIPI 변형 체크리스트)
-- `sw-setup-deep-dive.md`
+- `kv260-board-test-checklist.md`
+- `board-setup-and-test-guide.md`
 - `structure/kv260-directory-notes.md`
-
-## 관련 소스
-
-- `kv260/base/notebooks/video/mipi_to_displayport.ipynb`
-- `kv260/base/base.tcl` — `create_hier_cell_mipi`
-- `kv260/base/vivado/constraints/base.xdc` — MIPI/I2C/cam_gpio
-- `README.md` § Base Overlay
 
 ## 참고 링크
 
-- [Kria-PYNQ mipi_to_displayport.ipynb](https://github.com/Xilinx/Kria-PYNQ/blob/main/kv260/base/notebooks/video/mipi_to_displayport.ipynb)
-- [Digilent Pcam 5C](https://digilent.com/reference/add-ons/pcam-5c/start)
-- [KV260 Workshop — camera options](https://github.com/Xilinx/Xilinx_Kria_KV260_Workshop/blob/main/Linux%20set-up.md)
+- [Integrating New IAS Sensor Modules (KV260 J7)](https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/docs/integrating_new_sensors.html)
+- [Smart Camera Deployment](https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/docs/smartcamera/docs/app_deployment.html)
+- [KV260 Workshop — camera setup](https://github.com/Xilinx/Xilinx_Kria_KV260_Workshop/blob/main/Linux%20set-up.md)
