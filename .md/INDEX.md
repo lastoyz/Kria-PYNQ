@@ -12,7 +12,8 @@
 - [Common Troubleshooting](./guides/common-troubleshooting.md)
 - [Board Variants Notes](./guides/board-variants-notes.md)
 - [KV260 Board Test Checklist](./guides/kv260-board-test-checklist.md)
-- [KV260 MIPI Camera Test Guide](./guides/kv260-mipi-camera-test-guide.md)
+- [KV260 AR1335 Camera Module Test Guide](./guides/kv260-mipi-camera-test-guide.md) — Track B (J7 Smartcam)
+- [KV260 Peripherals & Camera Modules](./guides/kv260-peripherals-modules.md) — P/N·구매·참조
 
 ## structure
 

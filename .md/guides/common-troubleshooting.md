@@ -91,10 +91,16 @@ ls /sys/kernel/config/device-tree/overlays/pynq
 
 **원인**: OpenCV USB 웹캠 또는 `mountains.mp4` 필요 (`VSource.OpenCV`)
 
-**대응 (AR1335 IAS 프로젝트)**:
+**대응 (Track A — USB 웹캠)**:
 
-- `test_apps.py` **skip** — MIPI 검증은 Smartcam Phase (`kv260-mipi-camera-test-guide.md`)
-- composable/DPU pytest만 수행
+- USB 웹캠 연결 후 `sudo ./selftest.sh` 재실행
+- 또는 `mountains.mp4`를 테스트 입력으로 사용 (README/`test_apps.py` 참조)
+
+**대응 (Track B — AR1335만 테스트할 때)**:
+
+- `test_apps.py`는 **Track A 전용** → skip
+- composable/DPU pytest만 수행 (`kv260-mipi-camera-test-guide.md` Phase B-3)
+- MIPI 영상은 `smartcam --mipi`로 별도 검증
 
 ## AR1335 Smartcam MIPI 실패
 

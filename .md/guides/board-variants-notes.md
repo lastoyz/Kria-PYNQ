@@ -48,18 +48,16 @@ KV260, KR260, KD240 보드별 공통점과 차이를 한 페이지로 정리해,
 
 KR260/KD240 overlay/노트북은 **외부 pip/git 저장소**에서만 제공된다.
 
-### 4) KV260 전용 주변장치
+### 4) KV260 카메라 입력 (테스트 트랙별)
 
-**AR1335 IAS (본 프로젝트, J7)**
+| 트랙 | 장치 | 연결 | 검증 |
+|------|------|------|------|
+| **A — USB 웹캠** (기본) | USB cam (UVC) | **U44/U46** USB | `selftest.sh`, `opencv_*_webcam.ipynb` |
+| **B — AR1335 IAS** | onsemi AR1335 13MP AF | **J7** | `smartcam --mipi` (`kv260-mipi-camera-test-guide.md`) |
+| **C — Pcam 5C** | Digilent Pcam 5C (410-358) | RPi camera | `mipi_to_displayport.ipynb`, `base.mipi` |
 
-- onsemi AR1335 13MP AF RGB (AP1302 ISP 경로)
-- Smartcam firmware + `smartcam --mipi` 로 검증
-- 상세: `kv260-mipi-camera-test-guide.md`
-
-**기타 (선택/대안)**
-
-- USB 웹캠 — `test_apps.py`, opencv webcam 노트북용
-- Digilent Pcam 5C — RPi camera 포트, `mipi_to_displayport.ipynb`용
+- 모듈 P/N·구매 링크: **`kv260-peripherals-modules.md`**
+- AR1335(J7)와 Pcam(RPi)은 **다른 MIPI/PL 경로**
 - PMOD/Grove — microblaze 노트북
 
 ### 5) 노트북 정리 (install.sh)

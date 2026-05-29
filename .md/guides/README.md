@@ -9,8 +9,9 @@
 - `sw-setup-deep-dive.md`: Jupyter/노트북/selftest 기능 테스트 전용
 - `common-troubleshooting.md`: 공통 장애 대응 전용
 - `board-variants-notes.md`: KV260/KR260/KD240 차이/적용 주의사항 전용
-- `kv260-board-test-checklist.md`: KV260 실물 점검 실행 체크리스트 (MIPI 구성)
-- `kv260-mipi-camera-test-guide.md`: MIPI 카메라(Pcam 5C) 테스트·selftest 대체 전략
+- `kv260-board-test-checklist.md`: KV260 실물 점검 (Track A USB 웹캠 + Track B AR1335 비교)
+- `kv260-mipi-camera-test-guide.md`: Track B — AR1335 IAS(J7) Smartcam 검증 가이드
+- `kv260-peripherals-modules.md`: 카메라 모듈·주변장치 P/N·구매/참조 정보 (SSOT)
 
 ## RFSoC-PYNQ guides와의 차이
 

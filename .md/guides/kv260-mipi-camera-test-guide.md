@@ -1,10 +1,13 @@
-# KV260 MIPI Camera Test Guide
+# KV260 AR1335 Camera Module Test Guide
 
 ## 문서 목적
 
-KV260에 **onsemi AR1335 IAS 모듈**(J7)이 장착된 환경에서 카메라 입력을 검증하는 방법을 정리한다.
+KV260 **Track B** — onsemi **AR1335 IAS 모듈**(J7) 카메라 입력 검증 절차를 정리한다.
 
-## 본 프로젝트 카메라
+> **Track A (USB 웹캠)** 은 Kria-PYNQ 기본 흐름(`selftest.sh`, opencv 노트북)으로 `kv260-board-test-checklist.md` Phase 4A~5A를 따른다.  
+> 본 문서는 Track B 전용이며, 두 트랙을 **비교 검증**하는 것을 전제로 한다.
+
+## 본 가이드 대상 카메라
 
 | 항목 | 값 |
 |------|-----|
@@ -12,41 +15,52 @@ KV260에 **onsemi AR1335 IAS 모듈**(J7)이 장착된 환경에서 카메라 �
 | 제조/분류 | onsemi **IAS (Imager Access System)** |
 | 연결 | KV260 carrier **J7 IAS** 커넥터 |
 | ISP | onsemi **AP1302** (J7 전용) |
-| Avnet P/N 예 | CAVBA-000A |
+| Avnet P/N | **CAVBA-000A** |
+
+> P/N·구매·참조 전체: `kv260-peripherals-modules.md`
 
 ## 범위
 
-- 포함: AR1335 하드웨어 경로, Smartcam/xmutil 검증, PYNQ install.sh와의 관계, selftest 대체
+- 포함: AR1335 하드웨어 경로, Smartcam/xmutil 검증, Track A와의 비교, PL 전환
 - 제외: IAS J8 직결 FPGA 커스텀 PL, Vitis overlay 개발 상세
 
 ---
 
-## 중요: Pcam 5C / RPi 포트 vs AR1335 IAS (J7)
+## Track A vs Track B vs Track C
 
-KV260에는 **서로 다른 MIPI 입력 경로**가 있다.
+KV260에는 **서로 다른 카메라 입력 경로**가 있다.
 
-| 경로 | 커넥터 | 대표 모듈 | Kria-PYNQ base overlay |
-|------|--------|-----------|------------------------|
-| **IAS + AP1302** | **J7** | **AR1335**, AR0144 | `base.mipi` 노트북과 **PL 연결 불일치 가능** |
-| RPi camera | RPi FFC 포트 | Digilent Pcam 5C | `mipi_to_displayport.ipynb` 대상 |
+| 트랙 | 입력 | 커넥터 | SW 스택 | 검증 |
+|------|------|--------|---------|------|
+| **A — USB 웹캠** | USB cam | USB | PYNQ base overlay | `selftest.sh`, `opencv_*_webcam.ipynb` |
+| **B — AR1335 IAS** | AR1335 | **J7** | kv260-smartcam + xmutil | `smartcam --mipi` |
+| **C — Pcam 5C** | Pcam 5C | RPi camera | PYNQ `base.mipi` | `mipi_to_displayport.ipynb` |
 
-Kria-PYNQ `kv260/base` Vivado 설계의 top-level MIPI 포트(`mipi_phy_if`)와 노트북 `base.mipi` API는 **README상 Pcam 5C / RPi camera** 경로를 전제로 한다.
+Kria-PYNQ `base.mipi` / `mipi_to_displayport.ipynb`는 **Track C (RPi 포트)** 용이다.  
+`base.dtsi`에 AP1302/AR1335 노드가 있으나, 배포 bitstream과 Python `base.mipi`가 **J7 AR1335를 직접 구동한다고 가정하면 안 된다**.
 
-`base.dtsi`에 AP1302/AR1335 노드가 있으나, 배포 bitstream(`kv260_base_2.7.zip`)과 Python `base.mipi`가 **J7 AR1335를 직접 구동한다고 가정하면 안 된다**.
+### PL 점유 주의
 
-### 결론 (AR1335 장착 시)
+PYNQ base overlay(`base.bit`)와 smartcam firmware는 **동시 PL 점유 불가**.
 
-| 검증 목적 | 권장 경로 |
-|-----------|-----------|
-| **AR1335 MIPI 영상 입출력** | **kv260-smartcam** + `xmutil` + `smartcam --mipi` |
-| PYNQ overlay / composable / DPU | Kria-PYNQ `install.sh` (기존) |
-| USB 웹캠 OpenCV | `opencv_*_webcam.ipynb` (별도 USB cam 필요) |
-
-PYNQ base overlay와 smartcam firmware는 **동시 PL 점유 불가** → 테스트 시 `xmutil unloadapp` / overlay 재로딩으로 전환.
+- Track A → Track B: `BaseOverlay.free()` 또는 재부팅 → `xmutil loadapp kv260-smartcam`
+- Track B → Track A: `xmutil unloadapp` → `BaseOverlay("base.bit")` 재로딩
 
 ---
 
-## 하드웨어 준비
+## 사전 조건 (공통)
+
+Track B 실행 전 **Phase 1~3** 완료 (`kv260-board-test-checklist.md`):
+
+- Ubuntu 22.04 + `install.sh -b KV260`
+- Jupyter `:9090/lab`
+- `BaseOverlay("base.bit")` 로딩 확인
+
+Track A(selftest 전체)를 먼저 수행한 뒤 Track B로 전환하는 것을 권장한다.
+
+---
+
+## Phase B-1 — 하드웨어 준비
 
 ### AR1335 (J7)
 
@@ -60,27 +74,15 @@ PYNQ base overlay와 smartcam firmware는 **동시 PL 점유 불가** → 테스
 
 ### AP1302 firmware blob
 
-J7 AR1335는 ISP firmware가 필요하다.
-
 ```bash
 ls /lib/firmware/ap1302_ar1335_single_fw.bin
 ```
 
-없으면 smartcam firmware 패키지 설치 후 확인 (아래 § Smartcam 설치).
+없으면 아래 Smartcam 패키지 설치 후 확인.
 
 ---
 
-## Phase A — PYNQ 환경 (Kria-PYNQ)
-
-기존 체크리스트대로 `install.sh -b KV260` 완료.
-
-- Jupyter `:9090/lab`
-- composable / DPU selftest (`test_apps.py` 제외)
-- **카메라 검증은 Phase B에서 수행**
-
----
-
-## Phase B — AR1335 MIPI 검증 (Smartcam)
+## Phase B-2 — Smartcam 설치 및 MIPI 검증
 
 공식 절차: [Smart Camera Application Deployment](https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/docs/smartcamera/docs/app_deployment.html)
 
@@ -98,15 +100,13 @@ sudo xmutil listapps
 ### 2) Smartcam overlay 로드
 
 ```bash
-sudo xmutil unloadapp          # 기존 accelerator 있으면
+sudo xmutil unloadapp
 sudo xmutil loadapp kv260-smartcam
 ```
 
 > `xmutil desktop_disable` 후 UART로 진행하는 것이 안정적일 수 있다 (DP blank 가능).
 
-### 3) MIPI 스모크 — DP 출력 (AI 없음)
-
-모니터 연결 후:
+### 3) MIPI 스모크 — DP 출력
 
 ```bash
 smartcam --mipi -W 1920 -H 1080 --target dp --nodet
@@ -122,7 +122,7 @@ bash /opt/xilinx/kv260-smartcam/bin/02.mipi-dp.sh
 
 ### 4) MIPI RTSP (선택)
 
-보드에서:
+보드:
 
 ```bash
 smartcam --mipi -W 1920 -H 1080 --target rtsp --nodet
@@ -134,7 +134,7 @@ smartcam --mipi -W 1920 -H 1080 --target rtsp --nodet
 ffplay rtsp://<board_ip>:5000/test
 ```
 
-### 5) PYNQ overlay로 복귀 (필요 시)
+### 5) PYNQ overlay로 복귀 (Track A 재개 시)
 
 ```bash
 sudo xmutil unloadapp
@@ -144,19 +144,11 @@ Jupyter에서 `BaseOverlay("base.bit")` 재로딩.
 
 ---
 
-## Phase C — Kria-PYNQ `mipi_to_displayport.ipynb` (참고)
+## Phase B-3 — Selftest (Track B 변형)
 
-Pcam 5C / RPi 포트용 노트북. **AR1335@J7 전용 검증으로 사용하지 않는다.**
+`test_apps.py`는 `VSource.OpenCV` (USB 또는 `mountains.mp4`) 전용 → **Track A에서 검증**.
 
-AR1335만 있는 경우 이 노트북 실패는 **예상 가능** — Smartcam Phase B 결과를 카메라 pass 기준으로 삼는다.
-
----
-
-## Selftest (MIPI / AR1335 환경)
-
-`test_apps.py`는 `VSource.OpenCV` (USB 또는 `mountains.mp4`) 전용.
-
-**AR1335 MIPI 검증과 무관** → 제외.
+Track B에서는 composable/DPU만:
 
 ```bash
 cd /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_composable/runtime_tests
@@ -164,12 +156,23 @@ sudo python3 -m pytest test_composable.py test_mmio_partial_bitstreams.py
 sudo python3 -m pytest /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_dpu/tests
 ```
 
-| 항목 | AR1335 프로젝트 기준 |
-|------|---------------------|
-| MIPI 영상 | `smartcam --mipi` (Phase B) |
-| composable PL | pytest (Phase A) |
-| DPU | pytest (Phase A) |
-| test_apps | skip |
+| 항목 | Track A | Track B |
+|------|---------|---------|
+| USB/OpenCV (`test_apps`) | ✓ | skip |
+| composable PL | ✓ | ✓ |
+| DPU | ✓ | ✓ |
+| MIPI 영상 | — | `smartcam --mipi` |
+
+---
+
+## Track A / B / C 비교 요약
+
+| 비교 항목 | Track A (USB) | Track B (AR1335) | Track C (Pcam) |
+|-----------|---------------|------------------|----------------|
+| 해상도/품질 | 웹캠 의존 | 13MP AF (smartcam 설정) | Pcam 5C (720p 등) |
+| PYNQ 통합 | ✓ (opencv 노트북) | ✗ (별도 smartcam) | ✓ (`base.mipi`) |
+| selftest `test_apps` | ✓ | skip | skip (USB 전용) |
+| PL 전환 필요 | — | xmutil ↔ PYNQ | PYNQ overlay 내 |
 
 ---
 
@@ -177,15 +180,15 @@ sudo python3 -m pytest /usr/local/share/pynq-venv/lib/python3.10/site-packages/p
 
 ### Smartcam MIPI 인식 실패
 
-- J7 체결·FFC 방향 재확인
+- J7 체결·FFC 방향 재확인 (RPi 포트 아님)
 - `ap1302_ar1335_single_fw.bin` 존재 확인
 - `sudo xmutil loadapp kv260-smartcam` 재실행
-- `dmesg | grep -i ap1302` 로 ISP 드라이버/firmware 로드 확인
+- `dmesg | grep -i ap1302`
 
-### PYNQ `base.mipi` readframe 실패 (AR1335 장착 시)
+### PYNQ `base.mipi` / `mipi_to_displayport` 실패 (AR1335만 장착 시)
 
-- **정상적일 수 있음** — base overlay가 RPi MIPI 경로용이기 때문
-- AR1335 검증은 Smartcam 경로 사용
+- **Track C 경로**이므로 AR1335-only 환경에서 fail은 예상 가능
+- AR1335 검증은 Track B (`smartcam --mipi`) 결과를 기준으로 삼는다
 
 ### xmutil / PYNQ overlay 충돌
 
@@ -198,18 +201,19 @@ sudo python3 -m pytest /usr/local/share/pynq-venv/lib/python3.10/site-packages/p
 
 ---
 
-## Go/No-Go (AR1335)
+## Go/No-Go (Track B)
 
 - [ ] J7 AR1335 물리 장착 확인
 - [ ] `xlnx-firmware-kv260-smartcam` 설치
 - [ ] `xmutil loadapp kv260-smartcam` 성공
 - [ ] `smartcam --mipi --target dp --nodet` 영상 출력
-- [ ] PYNQ composable + DPU selftest pass
+- [ ] composable + DPU selftest pass (test_apps 제외)
 - [ ] PL 전환(xmutil ↔ PYNQ overlay) 절차 기록
+- [ ] Track A 결과와 비교 기록 (`kv260-board-test-checklist.md` Phase 7)
 
 ## 관련 문서
 
-- `kv260-board-test-checklist.md`
+- `kv260-board-test-checklist.md` (Track A + B 통합 체크리스트)
 - `board-setup-and-test-guide.md`
 - `structure/kv260-directory-notes.md`
 
@@ -217,4 +221,3 @@ sudo python3 -m pytest /usr/local/share/pynq-venv/lib/python3.10/site-packages/p
 
 - [Integrating New IAS Sensor Modules (KV260 J7)](https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/docs/integrating_new_sensors.html)
 - [Smart Camera Deployment](https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/docs/smartcamera/docs/app_deployment.html)
-- [KV260 Workshop — camera setup](https://github.com/Xilinx/Xilinx_Kria_KV260_Workshop/blob/main/Linux%20set-up.md)
