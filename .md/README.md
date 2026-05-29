@@ -20,9 +20,4 @@
 - 파일명은 소문자-kebab-case 사용 (예: `board-setup-and-test-guide.md`)
 - 문서 첫 부분에 목적/범위/관련 파일 경로를 짧게 기록
 - 중복 내용은 `INDEX.md`에서 링크로 연결
-
-## 분석 기준 저장소
-
-- 경로: `/Users/mac/tmp/test_github/local_kria_pynq`
-- 브랜치: `review_0529`
-- submodule `pynq/`: 링크만 확보 (소스 미다운로드, 커밋 `a056b84`)
+- Notion SSOT: `Kria-PYNQ Board Setup & Test Guide (Synced)` (Note on SMP 하위)

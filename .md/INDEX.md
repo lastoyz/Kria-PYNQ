@@ -11,6 +11,7 @@
 - [SW Setup Deep Dive](./guides/sw-setup-deep-dive.md)
 - [Common Troubleshooting](./guides/common-troubleshooting.md)
 - [Board Variants Notes](./guides/board-variants-notes.md)
+- [KV260 Board Test Checklist](./guides/kv260-board-test-checklist.md)
 
 ## structure
 

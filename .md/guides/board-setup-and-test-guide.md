@@ -86,7 +86,7 @@ ol = BaseOverlay("base.bit")
 
 ## 4) Selftest / 기능 테스트
 
-참조: `sw-setup-deep-dive.md`, `board-variants-notes.md`
+참조: `sw-setup-deep-dive.md`, `board-variants-notes.md`, `kv260-board-test-checklist.md` (KV260)
 
 ### Selftest 실행
 

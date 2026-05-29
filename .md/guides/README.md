@@ -9,6 +9,7 @@
 - `sw-setup-deep-dive.md`: Jupyter/노트북/selftest 기능 테스트 전용
 - `common-troubleshooting.md`: 공통 장애 대응 전용
 - `board-variants-notes.md`: KV260/KR260/KD240 차이/적용 주의사항 전용
+- `kv260-board-test-checklist.md`: KV260 실물 점검 실행 체크리스트
 
 ## RFSoC-PYNQ guides와의 차이
 
